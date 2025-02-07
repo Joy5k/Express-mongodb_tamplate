@@ -13,7 +13,7 @@ import {
 } from './user.utils';
 import { sendImageToCloudinary } from '../../utils/sendImageToCloudinary';
  
-const createUserIntoDB=abstractync (file:any,password: string, payload: any) => {
+const createUserIntoDB=async (file:any,password: string, payload: any) => {
     const result= await User.create(file,password,payload)
     return result
 };
