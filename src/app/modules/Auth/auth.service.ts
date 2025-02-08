@@ -4,15 +4,20 @@ import { JwtPayload } from 'jsonwebtoken';
 import config from '../../config';
 import AppError from '../../errors/AppError';
 import { User } from '../user/user.model';
-import { TLoginUser } from './auth.interface';
+import { TLoginUser, TRegisterUser } from './auth.interface';
 import { createToken, verifyToken } from './auth.utils';
 import { sendEmail } from '../../utils/sendEmail';
 
+
+const registerUser=async(payload:TRegisterUser)=>{
+  const user=await User.create(payload)
+  return user
+}
+
 const loginUser = async (payload: TLoginUser) => {
   // checking if the user is exist
-  const user = await User.isUserExistsByCustomId(payload.id);
-
-  if (!user) {
+  const user = await User.isUserExistsByEmail(payload.email);
+  if (!user._id) {
     throw new AppError(httpStatus.NOT_FOUND, 'This user is not found !');
   }
   // checking if the user is already deleted
@@ -39,8 +44,9 @@ const loginUser = async (payload: TLoginUser) => {
   //create token and sent to the  client
 
   const jwtPayload = {
-    userId: user.id,
+    userId: user._id,
     role: user.role,
+    email:user.email
   };
 
   const accessToken = createToken(
@@ -67,7 +73,7 @@ const changePassword = async (
   payload: { oldPassword: string; newPassword: string },
 ) => {
   // checking if the user is exist
-  const user = await User.isUserExistsByCustomId(userData.userId);
+  const user = await User.isUserExistsByEmail(userData?.email);
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'This user is not found !');
@@ -118,10 +124,10 @@ const refreshToken = async (token: string) => {
   // checking if the given token is valid
   const decoded = verifyToken(token,config.jwt_refresh_secret as string)
 
-  const { userId, iat } = decoded;
+  const {  iat,email } = decoded;
 
   // checking if the user is exist
-  const user = await User.isUserExistsByCustomId(userId);
+  const user = await User.isUserExistsByEmail(email);
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'This user is not found !');
@@ -148,8 +154,9 @@ const refreshToken = async (token: string) => {
   }
 
   const jwtPayload = {
-    userId: user.id,
+    userId: user._id,
     role: user.role,
+    email:user.email
   };
 
   const accessToken = createToken(
@@ -162,8 +169,8 @@ const refreshToken = async (token: string) => {
     accessToken,
   };
 };
-const forgetPassword = async (id: string) => {
-  const user = await User.isUserExistsByCustomId(id);
+const forgetPassword = async (email: string) => {
+  const user = await User.isUserExistsByEmail(email);
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'This user is not found !');
@@ -182,8 +189,9 @@ const forgetPassword = async (id: string) => {
     throw new AppError(httpStatus.FORBIDDEN, 'This user is blocked ! !');
   }
   const jwtPayload = {
-    userId: user.id,
+    userId: user._id,
     role: user.role,
+    email:user.email
   };
 
   const resetToken = createToken(
@@ -191,12 +199,12 @@ const forgetPassword = async (id: string) => {
     config.jwt_access_secret as string,
     '10m'
   );
-const resetUILink=`${config.reset_pass_ui_link}?${user.id}&token=${resetToken}`
+const resetUILink=`${config.reset_pass_ui_link}?${user._id}&token=${resetToken}`
   sendEmail(user.email,resetUILink)
 };
-const resetPassword = async (payload:{id:string,newPassword:string},token:string) => {
-  console.log(payload, token);
-  const user = await User.isUserExistsByCustomId(payload?.id);
+
+const resetPassword = async (payload:{email:string,newPassword:string,_id:string},token:string) => {
+  const user = await User.isUserExistsByEmail(payload?.email);
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'This user is not found !');
@@ -216,7 +224,7 @@ const resetPassword = async (payload:{id:string,newPassword:string},token:string
   }
   const decoded =verifyToken(token,config.jwt_access_secret as string)
 
-  if (payload.id !== decoded.userId) {
+  if (payload._id !== decoded.userId) {
 
     throw new AppError(httpStatus.FORBIDDEN,"Your are forbidden")
   }
@@ -240,6 +248,7 @@ const resetPassword = async (payload:{id:string,newPassword:string},token:string
 }
 
 export const AuthServices = {
+  registerUser,
   loginUser,
   changePassword,
   refreshToken,

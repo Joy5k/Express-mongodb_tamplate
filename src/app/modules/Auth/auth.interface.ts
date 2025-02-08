@@ -1,4 +1,10 @@
 export type TLoginUser = {
-  id: string;
+  email: string;
+  password: string;
+};
+export type TRegisterUser = {
+  firstName: string;
+  lastName: string;
+  email: string;
   password: string;
 };
